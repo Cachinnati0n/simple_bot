@@ -10,6 +10,12 @@ class Orders(commands.Cog):
 
     @commands.command()
     async def orders(self, ctx):
+        try:
+            await ctx.message.delete()
+        except discord.Forbidden:
+            await ctx.send("⚠️ I need permission to delete messages.")
+        except discord.HTTPException:
+            pass  # silently fail if message is already gone or can't be deleted
         server_id = str(ctx.guild.id)
 
         cursor.execute("""
