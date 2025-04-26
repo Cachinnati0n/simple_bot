@@ -8,42 +8,50 @@ class OrderControl(commands.Cog):
         self.bot = bot
 
     @commands.command()
-    async def pauseorder(self, ctx, resource: str):
-        server_id = str(ctx.guild.id)
+    async def pauseorder(self, ctx, order_id: int):
+            cursor.execute("""
+                UPDATE RecurringOrders
+                SET active = FALSE
+                WHERE id = %s AND server_id = %s AND active = TRUE;
+                """, (order_id, str(ctx.guild.id)))
+            db_connection.commit()
 
-        cursor.execute("""
-            UPDATE RecurringOrders
-            SET active = FALSE
-            WHERE server_id = %s AND resource_name = %s AND active = TRUE
-            ORDER BY id DESC
-            LIMIT 1;
-        """, (server_id, resource))
+            if cursor.rowcount:
+                await ctx.send(f"⏸️ Recurring order ID `{order_id}` has been paused.")
+            else:
+                await ctx.send(f"⚠️ No active recurring order with ID `{order_id}` found.")
 
-        db_connection.commit()
-
-        if cursor.rowcount:
-            await ctx.send(f"⏸️ Recurring order for `{resource}` has been paused.")
-        else:
-            await ctx.send(f"⚠️ No active recurring order for `{resource}` found.")
 
     @commands.command()
-    async def resumeorder(self, ctx, resource: str):
-        server_id = str(ctx.guild.id)
-
+    async def resumeorder(self, ctx, order_id: int):
         cursor.execute("""
             UPDATE RecurringOrders
             SET active = TRUE
-            WHERE server_id = %s AND resource_name = %s AND active = FALSE
-            ORDER BY id DESC
-            LIMIT 1;
-        """, (server_id, resource))
-
+            WHERE id = %s AND server_id = %s AND active = FALSE;
+        """, (order_id, str(ctx.guild.id)))
         db_connection.commit()
 
         if cursor.rowcount:
-            await ctx.send(f"▶️ Recurring order for `{resource}` has been resumed.")
+            await ctx.send(f"▶️ Recurring order ID `{order_id}` has been resumed.")
         else:
-            await ctx.send(f"⚠️ No paused recurring order for `{resource}` found.")
+            await ctx.send(f"⚠️ No paused recurring order with ID `{order_id}` found.")
+
+
+    
+    @commands.command()
+    async def setamount(self, ctx, order_id: int, new_amount: int):
+        cursor.execute("""
+            UPDATE RecurringOrders
+            SET amount = %s
+            WHERE id = %s AND server_id = %s;
+        """, (new_amount, order_id, str(ctx.guild.id)))
+        db_connection.commit()
+
+        if cursor.rowcount:
+            await ctx.send(f"✏️ Updated recurring order ID `{order_id}` to `{new_amount}` units.")
+        else:
+            await ctx.send(f"⚠️ No recurring order with ID `{order_id}` found.")
+
 
 async def setup(bot):
     await bot.add_cog(OrderControl(bot))

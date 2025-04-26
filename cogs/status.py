@@ -21,11 +21,12 @@ class Status(commands.Cog):
         server_id = str(ctx.guild.id)
 
         cursor.execute("""
-            SELECT resource_name, amount, recurrence, next_run_time, active
+            SELECT id, resource_name, amount, recurrence, next_run_time, active
             FROM RecurringOrders
             WHERE server_id = %s
             ORDER BY next_run_time ASC;
-        """, (server_id,))
+            """, (server_id,))
+
         results = cursor.fetchall()
 
         if not results:
@@ -33,10 +34,11 @@ class Status(commands.Cog):
             return
 
         message = "**📋 Recurring Order Status:**\n"
-        for resource, amount, recurrence, next_run, active in results:
+        for order_id, resource, amount, recurrence, next_run, active in results:
             icon = "✅" if active else "⏸️"
             next_run_str = next_run.strftime('%Y-%m-%d %H:%M')
-            message += f"{icon} `{resource}` — {amount} units — {recurrence} — next at `{next_run_str}`\n"
+            message += f"{icon} ID `{order_id}` — `{resource}` — {amount} units — {recurrence} — next at `{next_run_str}`\n"
+
 
         await ctx.send(message)
 
