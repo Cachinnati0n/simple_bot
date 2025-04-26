@@ -22,6 +22,7 @@ class FoxholeBot(commands.Bot):
         await self.load_extension("cogs.ping")
         await self.load_extension("cogs.dropoff")
         await self.load_extension("cogs.orders")
+        await self.load_extension("cogs.mydrops")
         #await self.load_extension("cogs.setchannel")
 
         # Start background task
