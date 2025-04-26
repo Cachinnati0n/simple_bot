@@ -2,4 +2,4 @@ discord.py
 python-dotenv
 mysql-connector-python
 datetime
-asnyncio
+asyncio
