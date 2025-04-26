@@ -37,7 +37,6 @@ async def testdb(ctx):
     except Exception as e:
         await ctx.send(f"❌ DB connection failed: `{e}`")
 
-@bot.command()
 
 
 @bot.command()
@@ -45,7 +44,7 @@ async def neworder(ctx, resource: str, amount: int, recurrence: str, channel: st
     await ctx.send(f"✅ Parsed: resource={resource}, amount={amount}, recurrence={recurrence}, channel={channel}")
 
 
-
+#bot.command()
 #async def neworder(ctx, resource: str, amount: int, recurrence: str, channel: discord.TextChannel):
 #    try:
 #        next_run = calculate_next_run(recurrence)
