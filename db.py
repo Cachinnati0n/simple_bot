@@ -35,9 +35,11 @@ def initialize_tables():
             fulfilled_amount INT DEFAULT 0,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             channel_id VARCHAR(50) NOT NULL,
+            status VARCHAR(20) DEFAULT 'open',
             FOREIGN KEY (recurring_order_id) REFERENCES RecurringOrders(id)
         );
     """)
+
 
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS Dropoffs (
