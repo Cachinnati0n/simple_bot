@@ -10,6 +10,7 @@ class NewOrder(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
+    @commands.command()
     async def neworder(self, ctx, amount: int, resource: str, recurrence: str, *, channel: str):
         try:
             channel_obj = get(ctx.guild.text_channels, mention=channel) or \
