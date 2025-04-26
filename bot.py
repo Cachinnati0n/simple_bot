@@ -1,143 +1,82 @@
 # bot.py
+
+import os
 import discord
 from discord.ext import commands
-import os
-from db import cursor, db_connection
 from datetime import datetime
 import asyncio
 
+from db import cursor, db_connection
+from utils import calculate_next_run
 
 intents = discord.Intents.default()
-intents.message_content = True  # Needed to read messages
+intents.message_content = True
 
-bot = commands.Bot(command_prefix="!", intents=intents)
+class FoxholeBot(commands.Bot):
+    def __init__(self):
+        super().__init__(command_prefix="!", intents=intents)
 
-@bot.event
-async def on_ready():
-    print(f"✅ Logged in as {bot.user}")
+    async def setup_hook(self):
+        # Load cogs here
+        await self.load_extension("cogs.neworder")
+        await self.load_extension("cogs.setchannel")
 
-@bot.command()
-async def ping(ctx):
-    await ctx.send("Pong!")
+        # Start background task
+        self.bg_task = self.loop.create_task(self.order_scheduler())
 
-@bot.command()
-async def testdb(ctx):
-    try:
-        cursor.execute("SHOW TABLES;")
-        tables = cursor.fetchall()
-        if tables:
-            await ctx.send(f"✅ Connected! Found {len(tables)} table(s): {[t[0] for t in tables]}")
-        else:
-            await ctx.send("⚠️ Connected to DB, but no tables found.")
-            await ctx.send("Attempting to create tables!")
-            initialize_tables()
-            cursor.execute("SHOW TABLES;")
-            tables = cursor.fetchall()
-            await ctx.send(f"✅ Connected! Found {len(tables)} table(s): {[t[0] for t in tables]}")
-    except Exception as e:
-        await ctx.send(f"❌ DB connection failed: `{e}`")
+    async def on_ready(self):
+        print(f"✅ Logged in as {self.user}")
 
-async def load_cogs():
-    await bot.load_extension("cogs.neworder")
+    async def order_scheduler(self):
+        await self.wait_until_ready()
+        while not self.is_closed():
+            try:
+                now = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
 
-
-
-async def order_scheduler():
-    await bot.wait_until_ready()
-    while not bot.is_closed():
-        try:
-            now = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
-
-            # Get all recurring orders that are due
-            cursor.execute("""
-                SELECT * FROM RecurringOrders
-                WHERE next_run_time <= %s AND active = TRUE;
-            """, (now,))
-            due_orders = cursor.fetchall()
-
-            for order in due_orders:
-                id, user_id, server_id, resource_name, amount, recurrence, next_run, channel_id, active = order
-
-                # Post the new order in the assigned channel
-                guild = bot.get_guild(int(server_id))
-                channel = guild.get_channel(int(channel_id))
-
-                if not channel:
-                    print(f"⚠️ Could not find channel ID {channel_id}")
-                    continue
-
-                await channel.send(
-                    f"📦 **New Order Posted!**\n"
-                    f"Resource: `{resource_name}`\n"
-                    f"Target Amount: `{amount}`\n"
-                    f"Drop-offs accepted below."
-                )
-
-                # Add to GeneratedOrders
                 cursor.execute("""
-                    INSERT INTO GeneratedOrders (
-                        recurring_order_id, user_id, server_id, resource_name,
-                        amount, fulfilled_amount, channel_id
-                    ) VALUES (%s, %s, %s, %s, %s, 0, %s);
-                """, (
-                    id, user_id, server_id, resource_name, amount, channel_id
-                ))
+                    SELECT * FROM RecurringOrders
+                    WHERE next_run_time <= %s AND active = TRUE;
+                """, (now,))
+                due_orders = cursor.fetchall()
 
-                # Calculate new next_run_time
-                new_next = calculate_next_run(recurrence).strftime('%Y-%m-%d %H:%M:%S')
+                for order in due_orders:
+                    id, user_id, server_id, resource_name, amount, recurrence, next_run, channel_id, active = order
 
-                # Update RecurringOrders
-                cursor.execute("""
-                    UPDATE RecurringOrders SET next_run_time = %s WHERE id = %s;
-                """, (new_next, id))
+                    guild = self.get_guild(int(server_id))
+                    channel = guild.get_channel(int(channel_id)) if guild else None
 
-                db_connection.commit()
+                    if not channel:
+                        print(f"⚠️ Could not find channel ID {channel_id}")
+                        continue
 
-        except Exception as e:
-            print(f"❌ Scheduler error: {e}")
+                    await channel.send(
+                        f"📦 **New Order Posted!**\n"
+                        f"Resource: `{resource_name}`\n"
+                        f"Target Amount: `{amount}`\n"
+                        f"Drop-offs accepted below."
+                    )
 
-        await asyncio.sleep(60)  # Check every 60 seconds
+                    cursor.execute("""
+                        INSERT INTO GeneratedOrders (
+                            recurring_order_id, user_id, server_id, resource_name,
+                            amount, fulfilled_amount, channel_id
+                        ) VALUES (%s, %s, %s, %s, %s, 0, %s);
+                    """, (
+                        id, user_id, server_id, resource_name, amount, channel_id
+                    ))
 
+                    new_next = calculate_next_run(recurrence).strftime('%Y-%m-%d %H:%M:%S')
+                    cursor.execute("""
+                        UPDATE RecurringOrders SET next_run_time = %s WHERE id = %s;
+                    """, (new_next, id))
 
-def initialize_tables():
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS RecurringOrders (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            user_id VARCHAR(50) NOT NULL,
-            server_id VARCHAR(50) NOT NULL,
-            resource_name VARCHAR(100) NOT NULL,
-            amount INT NOT NULL,
-            recurrence VARCHAR(50) NOT NULL,
-            next_run_time DATETIME NOT NULL,
-            channel_id VARCHAR(50) NOT NULL,
-            active BOOLEAN DEFAULT TRUE
-        );
-    """)
+                    db_connection.commit()
 
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS GeneratedOrders (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            recurring_order_id INT,
-            user_id VARCHAR(50) NOT NULL,
-            server_id VARCHAR(50) NOT NULL,
-            resource_name VARCHAR(100) NOT NULL,
-            amount INT NOT NULL,
-            fulfilled_amount INT DEFAULT 0,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            channel_id VARCHAR(50) NOT NULL,
-            FOREIGN KEY (recurring_order_id) REFERENCES RecurringOrders(id)
-        );
-    """)
+            except Exception as e:
+                print(f"❌ Scheduler error: {e}")
 
-    db_connection.commit()
+            await asyncio.sleep(60)  # run every 60 seconds
 
-
-
-
-
-async def main():
-    await load_cogs()
-    bot.loop.create_task(order_scheduler()) #runs the check for spawning a new task
-    await bot.start(os.getenv("DISCORD_TOKEN"))
-
-asyncio.run(main())
+# Instantiate and run the bot
+bot = FoxholeBot()
+bot.run(os.getenv("DISCORD_TOKEN"))
