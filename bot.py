@@ -4,7 +4,6 @@ from discord.ext import commands
 import os
 from db import cursor, db_connection
 from datetime import datetime
-from utils import calculate_next_run
 import asyncio
 
 
