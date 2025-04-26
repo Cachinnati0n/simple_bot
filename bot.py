@@ -3,6 +3,8 @@ import discord
 from discord.ext import commands
 import os
 from db import cursor, db_connection
+from datetime import datetime
+from utils import calculate_next_run
 
 
 intents = discord.Intents.default()
@@ -34,6 +36,42 @@ async def testdb(ctx):
             await ctx.send(f"✅ Connected! Found {len(tables)} table(s): {[t[0] for t in tables]}")
     except Exception as e:
         await ctx.send(f"❌ DB connection failed: `{e}`")
+
+@bot.command()
+async def neworder(ctx, resource: str, amount: int, recurrence: str, channel: discord.TextChannel):
+    try:
+        next_run = calculate_next_run(recurrence)
+        cursor.execute("""
+            INSERT INTO RecurringOrders (user_id, server_id, resource_name, amount, recurrence, next_run_time, channel_id)
+            VALUES (%s, %s, %s, %s, %s, %s, %s);
+        """, (
+            str(ctx.author.id),
+            str(ctx.guild.id),
+            resource,
+            amount,
+            recurrence,
+            next_run.strftime('%Y-%m-%d %H:%M:%S'),
+            str(channel.id)
+        ))
+        db_connection.commit()
+        await ctx.send(f"✅ Created recurring order for `{resource}` every `{recurrence}` in {channel.mention}!")
+    except Exception as e:
+        await ctx.send(f"❌ Failed to create order: `{e}`")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 def initialize_tables():
     cursor.execute("""
