@@ -2,6 +2,7 @@
 
 from discord.ext import commands
 from db import cursor, db_connection
+import discord
 
 class OrderControl(commands.Cog):
     def __init__(self, bot):
@@ -9,6 +10,13 @@ class OrderControl(commands.Cog):
 
     @commands.command()
     async def pauseorder(self, ctx, order_id: int):
+            try:
+                await ctx.message.delete()
+            except discord.Forbidden:
+                await ctx.send("⚠️ I don't have permission to delete messages.")
+            except discord.HTTPException:
+                await ctx.send("⚠️ Couldn't delete the message.")
+
             cursor.execute("""
                 UPDATE RecurringOrders
                 SET active = FALSE
@@ -24,6 +32,13 @@ class OrderControl(commands.Cog):
 
     @commands.command()
     async def resumeorder(self, ctx, order_id: int):
+        try:
+            await ctx.message.delete()
+        except discord.Forbidden:
+            await ctx.send("⚠️ I don't have permission to delete messages.")
+        except discord.HTTPException:
+            await ctx.send("⚠️ Couldn't delete the message.")
+
         cursor.execute("""
             UPDATE RecurringOrders
             SET active = TRUE
@@ -40,6 +55,12 @@ class OrderControl(commands.Cog):
     
     @commands.command()
     async def setamount(self, ctx, order_id: int, new_amount: int):
+        try:
+            await ctx.message.delete()
+        except discord.Forbidden:
+            await ctx.send("⚠️ I don't have permission to delete messages.")
+        except discord.HTTPException:
+            await ctx.send("⚠️ Couldn't delete the message.")
         cursor.execute("""
             UPDATE RecurringOrders
             SET amount = %s

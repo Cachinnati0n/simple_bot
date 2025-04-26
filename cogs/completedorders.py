@@ -2,6 +2,7 @@
 
 from discord.ext import commands
 from db import cursor
+import discord
 
 class CompletedOrders(commands.Cog):
     def __init__(self, bot):
@@ -9,6 +10,12 @@ class CompletedOrders(commands.Cog):
 
     @commands.command()
     async def completedorders(self, ctx, limit: int = 5):
+        try:
+            await ctx.message.delete()
+        except discord.Forbidden:
+            await ctx.send("⚠️ I need permission to delete messages.")
+        except discord.HTTPException:
+            pass  # silently fail if message is already gone or can't be deleted
         server_id = str(ctx.guild.id)
 
         cursor.execute("""
