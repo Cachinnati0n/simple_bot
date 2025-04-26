@@ -2,18 +2,7 @@
 import discord
 from discord.ext import commands
 import os
-import mysql.connector
-
-# Fetch connection info from environment
-db_connection = mysql.connector.connect(
-    host=os.getenv("MYSQL_HOST"),
-    port=int(os.getenv("MYSQL_PORT")),
-    database=os.getenv("MYSQL_DATABASE"),
-    user=os.getenv("MYSQL_USER"),
-    password=os.getenv("MYSQL_PASSWORD"),
-)
-
-cursor = db_connection.cursor()
+from db import cursor, db_connection
 
 
 intents = discord.Intents.default()
@@ -29,5 +18,4 @@ async def on_ready():
 async def ping(ctx):
     await ctx.send("Pong!")
 
-import os
 bot.run(os.getenv("DISCORD_TOKEN"))
