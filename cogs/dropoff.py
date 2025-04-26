@@ -44,11 +44,22 @@ class Dropoff(commands.Cog):
 
         db_connection.commit()
 
+
         percent = (new_fulfilled / target_amount) * 100
         await ctx.send(
             f"✅ {ctx.author.mention} dropped {amount} `{resource}`\n"
             f"📊 Order progress: {new_fulfilled} / {target_amount} ({percent:.1f}%)"
         )
+
+        # 🎉 Celebration if completed
+        if new_fulfilled >= target_amount:
+            # Get the channel and post celebration
+            channel = ctx.channel  # assumes dropoff is posted in the order's channel
+            await channel.send(
+                f"🎉 **Order complete!** `{resource}` goal of {target_amount} reached!\n"
+                f"Great work, soldiers! 🫡"
+            )
+
 
 # Required setup
 async def setup(bot):
