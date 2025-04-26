@@ -8,9 +8,15 @@ from datetime import datetime
 class Dropoff(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-
     @commands.command()
     async def dropoff(self, ctx, resource: str, amount: int):
+        try:
+            await ctx.message.delete()
+        except discord.Forbidden:
+            await ctx.send("⚠️ I don't have permission to delete messages.")
+        except discord.HTTPException:
+            await ctx.send("⚠️ Couldn't delete the message.")
+
         server_id = str(ctx.guild.id)
 
         # Find the most recent unfulfilled order
