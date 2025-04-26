@@ -38,25 +38,33 @@ async def testdb(ctx):
         await ctx.send(f"❌ DB connection failed: `{e}`")
 
 @bot.command()
-async def neworder(ctx, resource: str, amount: int, recurrence: str, channel: discord.TextChannel):
-    try:
-        next_run = calculate_next_run(recurrence)
-        cursor.execute("""
-            INSERT INTO RecurringOrders (user_id, server_id, resource_name, amount, recurrence, next_run_time, channel_id)
-            VALUES (%s, %s, %s, %s, %s, %s, %s);
-        """, (
-            str(ctx.author.id),
-            str(ctx.guild.id),
-            resource,
-            amount,
-            recurrence,
-            next_run.strftime('%Y-%m-%d %H:%M:%S'),
-            str(channel.id)
-        ))
-        db_connection.commit()
-        await ctx.send(f"✅ Created recurring order for `{resource}` every `{recurrence}` in {channel.mention}!")
-    except Exception as e:
-        await ctx.send(f"❌ Failed to create order: `{e}`")
+
+
+@bot.command()
+async def neworder(ctx, resource: str, amount: int, recurrence: str, channel: str):
+    await ctx.send(f"✅ Parsed: resource={resource}, amount={amount}, recurrence={recurrence}, channel={channel}")
+
+
+
+#async def neworder(ctx, resource: str, amount: int, recurrence: str, channel: discord.TextChannel):
+#    try:
+#        next_run = calculate_next_run(recurrence)
+#        cursor.execute("""
+#            INSERT INTO RecurringOrders (user_id, server_id, resource_name, amount, recurrence, next_run_time, channel_id)
+#            VALUES (%s, %s, %s, %s, %s, %s, %s);
+#        """, (
+#            str(ctx.author.id),
+#            str(ctx.guild.id),
+#            resource,
+#            amount,
+#            recurrence,
+#            next_run.strftime('%Y-%m-%d %H:%M:%S'),
+#            str(channel.id)
+#        ))
+#        db_connection.commit()
+#        await ctx.send(f"✅ Created recurring order for `{resource}` every `{recurrence}` in {channel.mention}!")
+#    except Exception as e:
+#        await ctx.send(f"❌ Failed to create order: `{e}`")
 
 
 
