@@ -16,7 +16,6 @@ class FoxholeBot(commands.Bot):
         super().__init__(command_prefix="!", intents=intents)
 
     async def setup_hook(self):
-        drop_all_tables()
         initialize_tables()
         # Load cogs here
         await self.load_extension("cogs.neworder")
