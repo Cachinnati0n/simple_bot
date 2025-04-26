@@ -19,7 +19,7 @@ class FoxholeBot(commands.Bot):
     async def setup_hook(self):
         # Load cogs here
         await self.load_extension("cogs.neworder")
-        await self.load_extension("cogs.setchannel")
+        #await self.load_extension("cogs.setchannel")
 
         # Start background task
         self.bg_task = self.loop.create_task(self.order_scheduler())
