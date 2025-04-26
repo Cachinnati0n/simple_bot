@@ -5,7 +5,7 @@ import discord
 from discord.ext import commands
 from datetime import datetime
 import asyncio
-from db import cursor, db_connection, initialize_tables, drop_all_tables
+from db import cursor, db_connection, initialize_tables
 from utils import calculate_next_run
 
 intents = discord.Intents.default()
