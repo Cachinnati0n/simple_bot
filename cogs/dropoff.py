@@ -53,9 +53,15 @@ class Dropoff(commands.Cog):
 
         # 🎉 Celebration if completed
         if new_fulfilled >= target_amount:
-            # Get the channel and post celebration
-            channel = ctx.channel  # assumes dropoff is posted in the order's channel
-            await channel.send(
+            # Update order status
+            cursor.execute("""
+                UPDATE GeneratedOrders
+                SET status = 'complete'
+                WHERE id = %s;
+            """, (order_id,))
+            db_connection.commit()
+
+            await ctx.send(
                 f"🎉 **Order complete!** `{resource}` goal of {target_amount} reached!\n"
                 f"Great work, soldiers! 🫡"
             )
