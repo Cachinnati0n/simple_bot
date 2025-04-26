@@ -13,7 +13,8 @@ intents.message_content = True
 
 class FoxholeBot(commands.Bot):
     def __init__(self):
-        super().__init__(command_prefix="!", intents=intents)
+        super().__init__(command_prefix="!", intents=intents, help_command=None)
+
 
     async def setup_hook(self):
         initialize_tables()
