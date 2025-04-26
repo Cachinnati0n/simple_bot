@@ -8,6 +8,13 @@ db_connection = mysql.connector.connect(
     user=os.getenv("MYSQLUSER"),
     password=os.getenv("MYSQLPASSWORD"),
 )
+def drop_all_tables():
+    cursor.execute("SET FOREIGN_KEY_CHECKS = 0;")
+    cursor.execute("DROP TABLE IF EXISTS Dropoffs;")
+    cursor.execute("DROP TABLE IF EXISTS GeneratedOrders;")
+    cursor.execute("DROP TABLE IF EXISTS RecurringOrders;")
+    cursor.execute("SET FOREIGN_KEY_CHECKS = 1;")
+    db_connection.commit()
 
 def initialize_tables():
     cursor.execute("""

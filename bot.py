@@ -5,7 +5,7 @@ import discord
 from discord.ext import commands
 from datetime import datetime
 import asyncio
-from db import cursor, db_connection, initialize_tables
+from db import cursor, db_connection, initialize_tables, drop_all_tables
 from utils import calculate_next_run
 
 intents = discord.Intents.default()
@@ -16,6 +16,7 @@ class FoxholeBot(commands.Bot):
         super().__init__(command_prefix="!", intents=intents)
 
     async def setup_hook(self):
+        drop_all_tables()
         initialize_tables()
         # Load cogs here
         await self.load_extension("cogs.neworder")
