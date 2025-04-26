@@ -26,6 +26,7 @@ class FoxholeBot(commands.Bot):
         await self.load_extension("cogs.completedorders")
         await self.load_extension("cogs.ordercontrol")
         await self.load_extension("cogs.status")
+        await self.load_extension("cogs.help")
 
         #await self.load_extension("cogs.setchannel")
 
