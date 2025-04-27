@@ -1,5 +1,6 @@
 import discord
 from discord.ext import commands
+import asyncio
 from db import cursor, db_connection
 
 class DropoffModal(discord.ui.Modal, title="Submit Dropoff"):
@@ -77,19 +78,6 @@ class DropoffPanelView(discord.ui.View):
 
     @discord.ui.button(label="Drop Off", style=discord.ButtonStyle.green, custom_id="dropoff_button")
     async def dropoff_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        server_id = str(interaction.guild.id)
-        cursor.execute("""
-            SELECT id, resource_name
-            FROM GeneratedOrders
-            WHERE server_id = %s AND status = 'open'
-            ORDER BY created_at DESC;
-        """, (server_id,))
-        orders = cursor.fetchall()
-
-        if not orders:
-            await interaction.response.send_message("📭 No active orders to drop off into.", ephemeral=True)
-            return
-
         modal = DropoffModal()
         await interaction.response.send_modal(modal)
 
@@ -97,6 +85,7 @@ class DropoffPanelView(discord.ui.View):
 class DropoffUIPanel(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+        self.bg_task = bot.loop.create_task(self.auto_refresh_panel())
 
     @commands.command()
     @commands.has_permissions(administrator=True)
@@ -114,7 +103,9 @@ class DropoffUIPanel(commands.Cog):
         active_orders = cursor.fetchall()
 
         if not active_orders:
-            await ctx.send("📭 No active orders to display.", view=view)
+            message = await ctx.send("📭 No active orders to display.", view=view)
+            self.bot.panel_message_id = message.id
+            self.bot.panel_channel_id = message.channel.id
             return
 
         msg = "📦 Click below to log your drop-off:\n\n"
@@ -127,6 +118,7 @@ class DropoffUIPanel(commands.Cog):
         message = await ctx.send(msg, view=view)
         self.bot.panel_message_id = message.id
         self.bot.panel_channel_id = message.channel.id
+        await ctx.message.delete()
 
     async def refresh_panel(self):
         if not hasattr(self.bot, "panel_message_id") or not hasattr(self.bot, "panel_channel_id"):
@@ -150,8 +142,10 @@ class DropoffUIPanel(commands.Cog):
         """, (server_id,))
         active_orders = cursor.fetchall()
 
+        view = DropoffPanelView(self.bot)
+
         if not active_orders:
-            await message.edit(content="📭 No active orders to display.")
+            await message.edit(content="📭 No active orders to display.", view=view)
             return
 
         msg = "📦 Click below to log your drop-off:\n\n"
@@ -161,7 +155,13 @@ class DropoffUIPanel(commands.Cog):
             bar = self.progress_bar(percent)
             msg += f"✅ [`{order_id}`] `{res}` — {fulfilled}/{amount} ({percent:.1%}) {bar}\n"
 
-        await message.edit(content=msg)
+        await message.edit(content=msg, view=view)
+
+    async def auto_refresh_panel(self):
+        await self.bot.wait_until_ready()
+        while not self.bot.is_closed():
+            await asyncio.sleep(120)  # every 2 minutes
+            await self.refresh_panel()
 
     def get_order_id_by_row(self, server_id, resource_name, amount, fulfilled):
         cursor.execute("""
