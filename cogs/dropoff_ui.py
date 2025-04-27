@@ -84,15 +84,22 @@ class DropoffPanelView(discord.ui.View):
 
 class DropoffUIPanel(commands.Cog):
     def __init__(self, bot):
-        self.bot = bot
-        cursor.execute("SELECT server_id, channel_id, message_id FROM DropoffPanel")
-        row = cursor.fetchone()
+        def __init__(self, bot):
+            self.bot = bot
 
-        if row:
-            self.bot.panel_channel_id = int(row[1])
-            self.bot.panel_message_id = int(row[2])
+            # Create maps to store per-server panel info
+            self.bot.panel_channel_id_map = {}
+            self.bot.panel_message_id_map = {}
 
-        self.bg_task = bot.loop.create_task(self.auto_refresh_panel())
+            # Load existing panels from DB
+            cursor.execute("SELECT server_id, channel_id, message_id FROM DropoffPanel")
+            for server_id, channel_id, message_id in cursor.fetchall():
+                self.bot.panel_channel_id_map[server_id] = int(channel_id)
+                self.bot.panel_message_id_map[server_id] = int(message_id)
+
+            # Start background refresher
+            self.bg_task = bot.loop.create_task(self.auto_refresh_panel())
+
 
     @commands.command()
     @commands.has_permissions(administrator=True)
@@ -127,47 +134,55 @@ class DropoffUIPanel(commands.Cog):
         self.bot.panel_channel_id = message.channel.id
         await ctx.message.delete()
         cursor.execute("""
-        INSERT INTO DropoffPanel (server_id, channel_id, message_id)
-        VALUES (%s, %s, %s)
-        ON DUPLICATE KEY UPDATE channel_id = VALUES(channel_id), message_id = VALUES(message_id);
+            INSERT INTO DropoffPanel (server_id, channel_id, message_id)
+            VALUES (%s, %s, %s)
+            ON DUPLICATE KEY UPDATE channel_id = VALUES(channel_id), message_id = VALUES(message_id);
         """, (server_id, str(message.channel.id), str(message.id)))
         db_connection.commit()
 
+        self.bot.panel_channel_id_map[server_id] = message.channel.id
+        self.bot.panel_message_id_map[server_id] = message.id
+
+
+    
     async def refresh_panel(self):
-        if not hasattr(self.bot, "panel_message_id") or not hasattr(self.bot, "panel_channel_id"):
-            return
+            for server_id, channel_id in self.bot.panel_channel_id_map.items():
+                message_id = self.bot.panel_message_id_map.get(server_id)
+                if not message_id:
+                    continue
 
-        channel = self.bot.get_channel(self.bot.panel_channel_id)
-        if not channel:
-            return
+                guild = self.bot.get_guild(int(server_id))
+                channel = guild.get_channel(int(channel_id)) if guild else None
+                if not channel:
+                    continue
 
-        try:
-            message = await channel.fetch_message(self.bot.panel_message_id)
-        except discord.NotFound:
-            return
+                try:
+                    message = await channel.fetch_message(int(message_id))
+                except discord.NotFound:
+                    continue
 
-        server_id = str(channel.guild.id)
-        cursor.execute("""
-            SELECT id, resource_name, amount, fulfilled_amount
-            FROM GeneratedOrders
-            WHERE server_id = %s AND status = 'open'
-            ORDER BY created_at DESC;
-        """, (server_id,))
-        active_orders = cursor.fetchall()
+                cursor.execute("""
+                    SELECT id, resource_name, amount, fulfilled_amount
+                    FROM GeneratedOrders
+                    WHERE server_id = %s AND status = 'open'
+                    ORDER BY created_at DESC;
+                """, (server_id,))
+                active_orders = cursor.fetchall()
 
-        view = DropoffPanelView(self.bot)
+                view = DropoffPanelView(self.bot)
 
-        if not active_orders:
-            await message.edit(content="📭 No active orders to display.", view=view)
-            return
+                if not active_orders:
+                    await message.edit(content="📭 No active orders to display.", view=view)
+                    continue
 
-        msg = "📦 Click below to log your drop-off:\n\n"
-        for order_id, res, amount, fulfilled in active_orders:
-            percent = fulfilled / amount
-            bar = self.progress_bar(percent)
-            msg += f"✅ [`{order_id}`] `{res}` — {fulfilled}/{amount} ({percent:.1%}) {bar}\n"
+                msg = "📦 Click below to log your drop-off:\n\n"
+                for order_id, res, amount, fulfilled in active_orders:
+                    percent = fulfilled / amount
+                    bar = self.progress_bar(percent)
+                    msg += f"✅ [`{order_id}`] `{res}` — {fulfilled}/{amount} ({percent:.1%}) {bar}\n"
 
-        await message.edit(content=msg, view=view)
+                await message.edit(content=msg, view=view)
+
 
     async def auto_refresh_panel(self):
         await self.bot.wait_until_ready()
