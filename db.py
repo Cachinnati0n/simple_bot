@@ -51,6 +51,15 @@ def initialize_tables():
         );
     """)
 
+    cursor.execute("""CREATE TABLE IF NOT EXISTS DropoffPanel (
+        id INT PRIMARY KEY AUTO_INCREMENT,
+        server_id VARCHAR(32) NOT NULL,
+        channel_id VARCHAR(32) NOT NULL,
+        message_id VARCHAR(32) NOT NULL
+        );
+                   
+                   
+    """)
     db_connection.commit()
 
 cursor = db_connection.cursor()
