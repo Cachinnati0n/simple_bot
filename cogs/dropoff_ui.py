@@ -119,6 +119,12 @@ class DropoffUIPanel(commands.Cog):
         self.bot.panel_message_id = message.id
         self.bot.panel_channel_id = message.channel.id
         await ctx.message.delete()
+        cursor.execute("""
+        INSERT INTO DropoffPanel (server_id, channel_id, message_id)
+        VALUES (%s, %s, %s)
+        ON DUPLICATE KEY UPDATE channel_id = VALUES(channel_id), message_id = VALUES(message_id);
+        """, (server_id, str(message.channel.id), str(message.id)))
+        db_connection.commit()
 
     async def refresh_panel(self):
         if not hasattr(self.bot, "panel_message_id") or not hasattr(self.bot, "panel_channel_id"):
