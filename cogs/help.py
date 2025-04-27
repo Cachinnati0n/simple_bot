@@ -1,8 +1,5 @@
-# cogs/help.py
-
 from discord.ext import commands
 import discord
-
 
 class Help(commands.Cog):
     def __init__(self, bot):
@@ -13,28 +10,35 @@ class Help(commands.Cog):
         try:
             await ctx.message.delete()
         except discord.Forbidden:
-            await ctx.send("⚠️ I don't have permission to delete messages.")
-        except discord.HTTPException:
-            await ctx.send("⚠️ Couldn't delete the message.")
-        help_message = (
-            "**📘 Foxhole Logistics Bot Help**\n\n"
-            "**Order Management**\n"
-            "`!neworder <amount> <resource> <recurrence> <#channel>` — Create a recurring order and post the first one\n"
-            "`!dropoff <resource> <amount>` — Contribute to a current order (deletes your command message)\n"
-            "`!orders` — View all active orders with progress bars\n"
-            "`!completedorders` — View recently fulfilled orders\n"
-            "`!status` — View all recurring orders with status and next run\n\n"
-            "**Control Commands (Admin)**\n"
-            "`!pauseorder <order_id>` — Pause a recurring order\n"
-            "`!resumeorder <order_id>` — Resume a paused order\n"
-            "`!setamount <order_id> <new_amount>` — Change the target amount for a recurring order\n\n"
-            "**User Stats**\n"
-            "`!mydrops` — View how much you’ve dropped off by resource\n"
-            "`!help` — Show this help message\n\n"
-            "_Ensure that `recurrence` is one of: `daily`, `weekly`, `every_2_days`, `monthly`_"
+            pass  # silently fail if it can't delete
+
+        help_text = (
+            "**📘 Foxhole Logistics Bot Commands**\n\n"
+
+            "**📦 Order Management**\n"
+            "`!neworder <amount> <resource> <recurrence> <#channel>` — Create a recurring order and post the first instance.\n"
+            "`!orders` — View currently active generated orders.\n"
+            "`!completedorders` — Show recently fulfilled orders.\n"
+            "`!dropoff <resource> <amount>` — Log a resource drop-off manually.\n"
+            "`!mydrops` — View your personal drop-off stats by resource.\n\n"
+
+            "**🛠 Admin Controls**\n"
+            "`!pauseorder <order_id>` — Temporarily disable a recurring order.\n"
+            "`!resumeorder <order_id>` — Resume a paused recurring order.\n"
+            "`!setamount <order_id> <new_amount>` — Change the target quantity of a recurring order.\n"
+            "`!deleteorder <order_id>` — Remove a generated order and its drop-off logs.\n"
+            "`!postpanel` — Post or refresh the interactive drop-off panel in a channel.\n\n"
+
+            "**📊 Status & Info**\n"
+            "`!status` — Show all recurring orders, their schedule, and progress.\n"
+            "`!ping` — Check if the bot is alive.\n"
+            "`!help` — Show this help message.\n\n"
+
+            "**🔁 Recurrence Options:** `daily`, `weekly`, `every_2_days`, `monthly`\n"
+            "Use the `order ID` from `!status` or the panel when using admin commands.\n"
         )
 
-        await ctx.send(help_message)
+        await ctx.send(help_text)
 
 async def setup(bot):
     await bot.add_cog(Help(bot))
