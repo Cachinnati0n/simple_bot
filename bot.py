@@ -7,6 +7,7 @@ from datetime import datetime
 import asyncio
 from db import cursor, db_connection, initialize_tables
 from utils import calculate_next_run
+from cogs.dropoff_ui import DropoffPanelView
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -28,6 +29,12 @@ class FoxholeBot(commands.Bot):
         await self.load_extension("cogs.ordercontrol")
         await self.load_extension("cogs.status")
         await self.load_extension("cogs.help")
+        await self.load_extension("cogs.dropoff_ui")
+
+
+        self.add_view(DropoffPanelView(self))  # Persistent view on restart
+
+
 
         #await self.load_extension("cogs.setchannel")
 
