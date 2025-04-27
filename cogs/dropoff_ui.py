@@ -84,7 +84,6 @@ class DropoffPanelView(discord.ui.View):
 
 class DropoffUIPanel(commands.Cog):
     def __init__(self, bot):
-        def __init__(self, bot):
             self.bot = bot
 
             # Create maps to store per-server panel info
