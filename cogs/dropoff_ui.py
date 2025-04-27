@@ -95,7 +95,7 @@ class DropoffUIPanel(commands.Cog):
 
         server_id = str(ctx.guild.id)
         cursor.execute("""
-            SELECT resource_name, amount, fulfilled_amount
+            SELECT id, resource_name, amount, fulfilled_amount
             FROM GeneratedOrders
             WHERE server_id = %s AND status = 'open'
             ORDER BY created_at DESC;
@@ -106,11 +106,11 @@ class DropoffUIPanel(commands.Cog):
             message = await ctx.send("📭 No active orders to display.", view=view)
             self.bot.panel_message_id = message.id
             self.bot.panel_channel_id = message.channel.id
+            await ctx.message.delete()
             return
 
         msg = "📦 Click below to log your drop-off:\n\n"
-        for res, amount, fulfilled in active_orders:
-            order_id = self.get_order_id_by_row(server_id, res, amount, fulfilled)
+        for order_id, res, amount, fulfilled in active_orders:
             percent = fulfilled / amount
             bar = self.progress_bar(percent)
             msg += f"✅ [`{order_id}`] `{res}` — {fulfilled}/{amount} ({percent:.1%}) {bar}\n"
@@ -156,13 +156,11 @@ class DropoffUIPanel(commands.Cog):
 
         await message.edit(content=msg, view=view)
 
-
     async def auto_refresh_panel(self):
         await self.bot.wait_until_ready()
         while not self.bot.is_closed():
             await asyncio.sleep(120)  # every 2 minutes
             await self.refresh_panel()
-
 
     def progress_bar(self, percent):
         filled = int(percent * 10)
