@@ -20,8 +20,8 @@ class Help(commands.Cog):
             "`!orders` — View currently active generated orders.\n"
             "`!completedorders` — Show recently fulfilled orders.\n"
             "`!dropoff <resource> <amount>` — Log a resource drop-off manually.\n"
-            "`!mydrops` — View your personal drop-off stats by resource.\n\n"
-            "`!orderonce <amount> <resource> <#channel>` — Create a one-time order that doesn't repeat.\n"
+            "`!mydrops` — View your personal drop-off stats by resource.\n"
+            "`!orderonce <amount> <resource> <#channel>` — Create a one-time order that doesn't repeat.\n\n"
 
 
             "**🛠 Admin Controls**\n"
