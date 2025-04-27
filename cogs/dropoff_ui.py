@@ -1,23 +1,17 @@
-# cogs/dropoff_ui.py
-
 import discord
 from discord.ext import commands
 from db import cursor, db_connection
 
 class DropoffModal(discord.ui.Modal, title="Submit Dropoff"):
-
-    def __init__(self, active_orders):
+    def __init__(self):
         super().__init__()
-        self.active_orders = active_orders
 
-        self.order_select = discord.ui.Select(
-            placeholder="Select an order...",
-            options=[
-                discord.SelectOption(label=f"{res} (ID {oid})", value=str(oid))
-                for oid, res in active_orders
-            ]
+        self.order_input = discord.ui.TextInput(
+            label="Order ID",
+            placeholder="e.g. 12",
+            required=True
         )
-        self.add_item(self.order_select)
+        self.add_item(self.order_input)
 
         self.amount_input = discord.ui.TextInput(
             label="Amount Dropped Off",
@@ -27,21 +21,19 @@ class DropoffModal(discord.ui.Modal, title="Submit Dropoff"):
         self.add_item(self.amount_input)
 
     async def on_submit(self, interaction: discord.Interaction):
-        order_id = int(self.order_select.values[0])
+        try:
+            order_id = int(self.order_input.value)
+            amount = int(self.amount_input.value)
+        except ValueError:
+            await interaction.response.send_message("❌ Invalid input. Please enter numbers only.", ephemeral=True)
+            return
+
         user_id = str(interaction.user.id)
         server_id = str(interaction.guild.id)
 
-        try:
-            amount = int(self.amount_input.value)
-        except ValueError:
-            await interaction.response.send_message("❌ Invalid amount entered.", ephemeral=True)
-            return
-
-        # Get order details
         cursor.execute("""
-            SELECT amount, fulfilled_amount
-            FROM GeneratedOrders
-            WHERE id = %s AND server_id = %s;
+            SELECT amount, fulfilled_amount FROM GeneratedOrders
+            WHERE id = %s AND server_id = %s AND status = 'open';
         """, (order_id, server_id))
         row = cursor.fetchone()
 
@@ -58,30 +50,25 @@ class DropoffModal(discord.ui.Modal, title="Submit Dropoff"):
         """, (order_id, user_id, amount))
 
         cursor.execute("""
-            UPDATE GeneratedOrders
-            SET fulfilled_amount = %s
-            WHERE id = %s;
+            UPDATE GeneratedOrders SET fulfilled_amount = %s WHERE id = %s;
         """, (new_total, order_id))
 
         if new_total >= target:
             cursor.execute("""
-                UPDATE GeneratedOrders
-                SET status = 'complete'
-                WHERE id = %s;
+                UPDATE GeneratedOrders SET status = 'complete' WHERE id = %s;
             """, (order_id,))
 
         db_connection.commit()
 
-                # Refresh the panel UI
-        panel_cog = self.bot.get_cog("DropoffUIPanel")
+        panel_cog = interaction.client.get_cog("DropoffUIPanel")
         if panel_cog:
             await panel_cog.refresh_panel()
-
 
         await interaction.response.send_message(
             f"✅ Logged {amount} units to order `{order_id}`.\n📊 Progress: {new_total}/{target} ({new_total/target:.1%})",
             ephemeral=True
         )
+
 
 class DropoffPanelView(discord.ui.View):
     def __init__(self, bot):
@@ -103,8 +90,9 @@ class DropoffPanelView(discord.ui.View):
             await interaction.response.send_message("📭 No active orders to drop off into.", ephemeral=True)
             return
 
-        modal = DropoffModal(active_orders=orders)
+        modal = DropoffModal()
         await interaction.response.send_modal(modal)
+
 
 class DropoffUIPanel(commands.Cog):
     def __init__(self, bot):
@@ -116,7 +104,6 @@ class DropoffUIPanel(commands.Cog):
         """Post the Drop Off button panel to the current channel."""
         view = DropoffPanelView(self.bot)
 
-        # Get all active orders for this server
         server_id = str(ctx.guild.id)
         cursor.execute("""
             SELECT resource_name, amount, fulfilled_amount
@@ -130,24 +117,20 @@ class DropoffUIPanel(commands.Cog):
             await ctx.send("📭 No active orders to display.", view=view)
             return
 
-        # Build the progress text
         msg = "📦 Click below to log your drop-off:\n\n"
         for res, amount, fulfilled in active_orders:
+            order_id = self.get_order_id_by_row(server_id, res, amount, fulfilled)
             percent = fulfilled / amount
             bar = self.progress_bar(percent)
-            msg += f"✅ `{res}` — {fulfilled}/{amount} ({percent:.1%}) {bar}\n"
+            msg += f"✅ [`{order_id}`] `{res}` — {fulfilled}/{amount} ({percent:.1%}) {bar}\n"
 
         message = await ctx.send(msg, view=view)
-
-        # Store the panel reference on the bot object
         self.bot.panel_message_id = message.id
         self.bot.panel_channel_id = message.channel.id
 
-
-        await ctx.send(msg, view=view)
     async def refresh_panel(self):
         if not hasattr(self.bot, "panel_message_id") or not hasattr(self.bot, "panel_channel_id"):
-            return  # panel hasn't been posted yet
+            return
 
         channel = self.bot.get_channel(self.bot.panel_channel_id)
         if not channel:
@@ -156,9 +139,8 @@ class DropoffUIPanel(commands.Cog):
         try:
             message = await channel.fetch_message(self.bot.panel_message_id)
         except discord.NotFound:
-            return  # message deleted
+            return
 
-        # Rebuild the message content
         server_id = str(channel.guild.id)
         cursor.execute("""
             SELECT resource_name, amount, fulfilled_amount
@@ -174,11 +156,21 @@ class DropoffUIPanel(commands.Cog):
 
         msg = "📦 Click below to log your drop-off:\n\n"
         for res, amount, fulfilled in active_orders:
+            order_id = self.get_order_id_by_row(server_id, res, amount, fulfilled)
             percent = fulfilled / amount
             bar = self.progress_bar(percent)
-            msg += f"✅ `{res}` — {fulfilled}/{amount} ({percent:.1%}) {bar}\n"
+            msg += f"✅ [`{order_id}`] `{res}` — {fulfilled}/{amount} ({percent:.1%}) {bar}\n"
 
         await message.edit(content=msg)
+
+    def get_order_id_by_row(self, server_id, resource_name, amount, fulfilled):
+        cursor.execute("""
+            SELECT id FROM GeneratedOrders
+            WHERE server_id = %s AND resource_name = %s AND amount = %s AND fulfilled_amount = %s
+            ORDER BY created_at DESC LIMIT 1;
+        """, (server_id, resource_name, amount, fulfilled))
+        row = cursor.fetchone()
+        return row[0] if row else "?"
 
     def progress_bar(self, percent):
         filled = int(percent * 10)
