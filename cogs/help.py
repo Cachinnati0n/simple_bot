@@ -21,6 +21,8 @@ class Help(commands.Cog):
             "`!completedorders` — Show recently fulfilled orders.\n"
             "`!dropoff <resource> <amount>` — Log a resource drop-off manually.\n"
             "`!mydrops` — View your personal drop-off stats by resource.\n\n"
+            "`!orderonce <amount> <resource> <#channel>` — Create a one-time order that doesn't repeat.\n"
+
 
             "**🛠 Admin Controls**\n"
             "`!pauseorder <order_id>` — Temporarily disable a recurring order.\n"
@@ -28,6 +30,7 @@ class Help(commands.Cog):
             "`!setamount <order_id> <new_amount>` — Change the target quantity of a recurring order.\n"
             "`!deleteorder <order_id>` — Remove a generated order and its drop-off logs.\n"
             "`!postpanel` — Post or refresh the interactive drop-off panel in a channel.\n\n"
+
 
             "**📊 Status & Info**\n"
             "`!status` — Show all recurring orders, their schedule, and progress.\n"
