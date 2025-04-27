@@ -85,6 +85,13 @@ class DropoffPanelView(discord.ui.View):
 class DropoffUIPanel(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+        cursor.execute("SELECT server_id, channel_id, message_id FROM DropoffPanel")
+        row = cursor.fetchone()
+
+        if row:
+            self.bot.panel_channel_id = int(row[1])
+            self.bot.panel_message_id = int(row[2])
+
         self.bg_task = bot.loop.create_task(self.auto_refresh_panel())
 
     @commands.command()
