@@ -51,6 +51,30 @@ class OrderControl(commands.Cog):
         else:
             await ctx.send(f"⚠️ No paused recurring order with ID `{order_id}` found.")
 
+    @commands.command()
+    @commands.has_permissions(administrator=True)
+    async def deleteorder(self, ctx, order_id: int):
+            server_id = str(ctx.guild.id)
+
+            # First, check if the order exists
+            cursor.execute("""
+                SELECT id FROM GeneratedOrders
+                WHERE id = %s AND server_id = %s;
+            """, (order_id, server_id))
+            result = cursor.fetchone()
+
+            if not result:
+                await ctx.send(f"❌ No order with ID `{order_id}` found.")
+                return
+
+            # Delete associated dropoffs first (if any)
+            cursor.execute("DELETE FROM Dropoffs WHERE order_id = %s;", (order_id,))
+            cursor.execute("DELETE FROM GeneratedOrders WHERE id = %s;", (order_id,))
+            db_connection.commit()
+
+            await ctx.send(f"🗑️ Order ID `{order_id}` and its drop-offs have been deleted.")
+
+
 
     
     @commands.command()
