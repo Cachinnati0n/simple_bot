@@ -3,7 +3,6 @@ from discord.ext import commands
 import asyncio
 from db import cursor, db_connection
 
-
 class DropoffModal(discord.ui.Modal, title="Submit Dropoff"):
     def __init__(self):
         super().__init__()
@@ -87,15 +86,14 @@ class DropoffUIPanel(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-        # Panel cache: { server_id: (channel_id, message_id) }
-        self.bot.panel_channel_id_map = {}
-        self.bot.panel_message_id_map = {}
+        # New multi-server, multi-channel panel registry
+        self.bot.panel_registry = {}  # key: (server_id, channel_id), value: message_id
 
-        # Load existing panels from DB
+        # Load all from DB
         cursor.execute("SELECT server_id, channel_id, message_id FROM DropoffPanel")
         for server_id, channel_id, message_id in cursor.fetchall():
-            self.bot.panel_channel_id_map[server_id] = int(channel_id)
-            self.bot.panel_message_id_map[server_id] = int(message_id)
+            key = (server_id, channel_id)
+            self.bot.panel_registry[key] = int(message_id)
 
         self.bg_task = bot.loop.create_task(self.auto_refresh_panel())
 
@@ -105,6 +103,8 @@ class DropoffUIPanel(commands.Cog):
         """Post the Drop Off button panel to the current channel."""
         view = DropoffPanelView(self.bot)
         server_id = str(ctx.guild.id)
+        channel_id = str(ctx.channel.id)
+        key = (server_id, channel_id)
 
         cursor.execute("""
             SELECT id, resource_name, amount, fulfilled_amount
@@ -116,8 +116,13 @@ class DropoffUIPanel(commands.Cog):
 
         if not active_orders:
             message = await ctx.send("📭 No active orders to display.", view=view)
-            self.bot.panel_channel_id_map[server_id] = message.channel.id
-            self.bot.panel_message_id_map[server_id] = message.id
+            self.bot.panel_registry[key] = message.id
+            cursor.execute("""
+                INSERT INTO DropoffPanel (server_id, channel_id, message_id)
+                VALUES (%s, %s, %s)
+                ON DUPLICATE KEY UPDATE message_id = VALUES(message_id);
+            """, (server_id, channel_id, str(message.id)))
+            db_connection.commit()
             await ctx.message.delete()
             return
 
@@ -129,26 +134,19 @@ class DropoffUIPanel(commands.Cog):
 
         message = await ctx.send(msg, view=view)
 
-        # Save panel reference
-        self.bot.panel_channel_id_map[server_id] = message.channel.id
-        self.bot.panel_message_id_map[server_id] = message.id
-
+        self.bot.panel_registry[key] = message.id
         cursor.execute("""
             INSERT INTO DropoffPanel (server_id, channel_id, message_id)
             VALUES (%s, %s, %s)
-            ON DUPLICATE KEY UPDATE channel_id = VALUES(channel_id), message_id = VALUES(message_id);
-        """, (server_id, str(message.channel.id), str(message.id)))
+            ON DUPLICATE KEY UPDATE message_id = VALUES(message_id);
+        """, (server_id, channel_id, str(message.id)))
         db_connection.commit()
 
         await ctx.message.delete()
 
     async def refresh_panel(self):
-        for server_id, channel_id in list(self.bot.panel_channel_id_map.items()):
+        for (server_id, channel_id), message_id in list(self.bot.panel_registry.items()):
             try:
-                message_id = self.bot.panel_message_id_map.get(server_id)
-                if not message_id:
-                    continue
-
                 guild = self.bot.get_guild(int(server_id))
                 if not guild:
                     continue
@@ -160,10 +158,10 @@ class DropoffUIPanel(commands.Cog):
                 try:
                     message = await channel.fetch_message(int(message_id))
                 except discord.NotFound:
-                    # Clean up orphaned entry
-                    del self.bot.panel_channel_id_map[server_id]
-                    del self.bot.panel_message_id_map[server_id]
-                    cursor.execute("DELETE FROM DropoffPanel WHERE server_id = %s", (server_id,))
+                    del self.bot.panel_registry[(server_id, channel_id)]
+                    cursor.execute("""
+                        DELETE FROM DropoffPanel WHERE server_id = %s AND channel_id = %s
+                    """, (server_id, channel_id))
                     db_connection.commit()
                     continue
 
@@ -190,7 +188,7 @@ class DropoffUIPanel(commands.Cog):
                 await message.edit(content=msg, view=view)
 
             except Exception as e:
-                print(f"⚠️ Failed to refresh panel for server {server_id}: {e}")
+                print(f"⚠️ Error refreshing panel for {server_id}/{channel_id}: {e}")
 
     async def auto_refresh_panel(self):
         await self.bot.wait_until_ready()
