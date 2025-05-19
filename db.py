@@ -51,7 +51,7 @@ def initialize_tables():
         );
     """)
 
-    cursor.execute("""CREATE TABLE DropoffPanel (
+    cursor.execute("""CREATE TABLE IF NOT EXISTS DropoffPanel (
     server_id VARCHAR(32),
     channel_id VARCHAR(32),
     message_id VARCHAR(32),
