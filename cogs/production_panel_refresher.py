@@ -1,7 +1,7 @@
 import discord
 from discord.ext import commands, tasks
 from db import cursor, db_connection
-from cogs.dropoffpanel import DropoffPanelView
+from .dropoffpanel import DropoffPanelView
 
 class ProductionPanelRefresher(commands.Cog):
     def __init__(self, bot):
