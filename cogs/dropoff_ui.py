@@ -61,14 +61,26 @@ class DropoffModal(discord.ui.Modal, title="Submit Dropoff"):
 
         db_connection.commit()
 
+        # Refresh full dropoff panel
         panel_cog = interaction.client.get_cog("DropoffUIPanel")
         if panel_cog:
             await panel_cog.refresh_panel()
+
+        # Refresh thread mini-panel if tied to a production order
+        cursor.execute("SELECT production_order_id FROM GeneratedOrders WHERE id = %s;", (order_id,))
+        prod_row = cursor.fetchone()
+
+        if prod_row and prod_row[0] is not None:
+            production_order_id = prod_row[0]
+            prod_cog = interaction.client.get_cog("ProductionThreadPanel")
+            if prod_cog:
+                await prod_cog.refresh_panel(production_order_id)
 
         await interaction.response.send_message(
             f"✅ Logged {amount} units to order `{order_id}`.\n📊 Progress: {new_total}/{target} ({new_total/target:.1%})",
             ephemeral=True
         )
+
 
 
 class DropoffPanelView(discord.ui.View):
