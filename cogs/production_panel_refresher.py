@@ -67,6 +67,43 @@ class ProductionPanelRefresher(commands.Cog):
     async def before_refresh(self):
         await self.bot.wait_until_ready()
 
+    async def refresh_single_panel(self, production_order_id: int):
+        cursor.execute("SELECT thread_id, message_id FROM ProductionPanels WHERE production_order_id = %s", (production_order_id,))
+        row = cursor.fetchone()
+        if not row:
+            return
+
+        thread_id, message_id = int(row[0]), int(row[1])
+        thread = self.bot.get_channel(thread_id)
+        if not thread:
+            return
+
+        try:
+            message = await thread.fetch_message(message_id)
+        except discord.NotFound:
+            return
+
+        cursor.execute("""
+            SELECT id, resource_name, amount, fulfilled_amount
+            FROM GeneratedOrders
+            WHERE production_order_id = %s AND status = 'open'
+            ORDER BY created_at DESC;
+        """, (production_order_id,))
+        active_orders = cursor.fetchall()
+
+        if not active_orders:
+            await message.edit(content="📭 No active orders for this production.", view=None)
+            return
+
+        msg = "📦 Production Order Drop-Off Panel:\n\n"
+        for order_id, res, amount, fulfilled in active_orders:
+            percent = fulfilled / amount
+            bar = "▰" * int(percent * 10) + "▱" * (10 - int(percent * 10))
+            msg += f"✅ [`{order_id}`] `{res}` — {fulfilled}/{amount} ({percent:.1%}) {bar}\n"
+
+        view = DropoffPanelView(self.bot)
+        await message.edit(content=msg, view=view)
+
 
 async def setup(bot):
     await bot.add_cog(ProductionPanelRefresher(bot))
