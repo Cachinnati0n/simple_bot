@@ -30,6 +30,7 @@ def initialize_tables():
             user_id VARCHAR(50) NOT NULL,
             server_id VARCHAR(50) NOT NULL,
             resource_name VARCHAR(100) NOT NULL,
+            production_order_id INT,
             amount INT NOT NULL,
             fulfilled_amount INT DEFAULT 0,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -70,7 +71,5 @@ def initialize_tables():
     description TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );""")
-
-    cursor.execute("""ALTER TABLE GeneratedOrders ADD COLUMN IF NOT EXISTS production_order_id INT;""")
 
 cursor = db_connection.cursor()
