@@ -2,7 +2,7 @@ import discord
 from discord.ext import commands
 from db import cursor, db_connection
 import asyncio
-from cogs.production_thread_panel import post_production_panel
+from .production_thread_panel import post_production_panel
 
 # Recipes
 RECIPES = {
