@@ -8,66 +8,59 @@ class HelpCommand(commands.Cog):
     @commands.command(name="help")
     async def help_command(self, ctx):
         embed = discord.Embed(
-            title="🛠️ Scrapbook Logistics Help Menu",
-            description="Here’s a list of commands and how to use them:",
-            color=discord.Color.blue()
+            title="📘 Foxhole Logistics Bot Commands",
+            color=discord.Color.dark_blue()
         )
 
         embed.add_field(
-            name="`!help`",
-            value="Show this help message.",
+            name="📦 Order Management",
+            value=(
+                "`!neworder <amount> <resource> <recurrence> <#channel>` — Create a recurring order and post the first instance.\n"
+                "`!orders` — View currently active generated orders.\n"
+                "`!completedorders` — Show recently fulfilled orders.\n"
+                "`!dropoff <resource> <amount>` — Log a resource drop-off manually.\n"
+                "`!mydrops` — View your personal drop-off stats by resource."
+            ),
             inline=False
         )
 
         embed.add_field(
-            name="`!neworder`",
-            value="Start a recurring resource order.\n**Syntax:** `!neworder` and follow prompts.",
+            name="🛠 Admin Controls",
+            value=(
+                "`!pauseorder <order_id>` — Temporarily disable a recurring order.\n"
+                "`!resumeorder <order_id>` — Resume a paused recurring order.\n"
+                "`!setamount <order_id> <new_amount>` — Change the target quantity of a recurring order.\n"
+                "`!deleteorder <order_id>` — Remove a generated order and its drop-off logs.\n"
+                "`!postpanel` — Post or refresh the interactive drop-off panel in a channel."
+            ),
             inline=False
         )
 
         embed.add_field(
-            name="`!orderonce`",
-            value="Create a one-time resource order.\n**Syntax:** `!orderonce` and follow prompts.",
+            name="📊 Status & Info",
+            value=(
+                "`!status` — Show all recurring orders, their schedule, and progress.\n"
+                "`!ping` — Check if the bot is alive.\n"
+                "`!help` — Show this help message."
+            ),
             inline=False
         )
 
         embed.add_field(
-            name="`!postpanel`",
-            value="(Admin) Post the full drop-off dashboard.\n**Syntax:** `!postpanel`",
+            name="🧮 Other Commands",
+            value=(
+                "`!leaderboard` — See who’s contributed the most resources.\n"
+                "`!postproduction` — Adds UI buttons to start a new production order."
+            ),
             inline=False
         )
 
         embed.add_field(
-            name="`!postproduction`",
-            value="(Admin) Post the UI for starting a production order.\n**Syntax:** `!postproduction`",
+            name="🔁 Recurrence Options",
+            value="`daily`, `weekly`, `every_2_days`, `monthly`\nUse the order ID from `!status` or the panel when using admin commands.",
             inline=False
         )
 
-        embed.add_field(
-            name="`!pauseorder <order_id>`",
-            value="(Admin) Pause an active recurring order.\n**Syntax:** `!pauseorder 17`",
-            inline=False
-        )
-
-        embed.add_field(
-            name="`!mydrops`",
-            value="List your drop-offs and contributions.\n**Syntax:** `!mydrops`",
-            inline=False
-        )
-
-        embed.add_field(
-            name="`!completedorders`",
-            value="View a summary of fulfilled orders.\n**Syntax:** `!completedorders`",
-            inline=False
-        )
-
-        embed.add_field(
-            name="`!status`",
-            value="Show current server status and active logistics.\n**Syntax:** `!status`",
-            inline=False
-        )
-
-        embed.set_footer(text="You can also use interactive buttons in each panel to log drop-offs or create new orders.")
         await ctx.send(embed=embed)
 
 async def setup(bot):
