@@ -129,15 +129,24 @@ class ProductionPanelView(discord.ui.View):
         for recipe_name in RECIPES.keys():
             self.add_item(ProductionRecipeButton(bot, recipe_name))
 
+    @classmethod
+    def is_persistent(cls) -> bool:
+        return True
+
 
 class ProductionRecipeButton(discord.ui.Button):
     def __init__(self, bot, recipe_name):
-        super().__init__(label=recipe_name, style=discord.ButtonStyle.blurple)
+        super().__init__(
+            label=recipe_name,
+            style=discord.ButtonStyle.blurple,
+            custom_id=f"recipe_{recipe_name.replace(' ', '_').lower()}"  # Make it lowercase + underscore-safe
+        )
         self.bot = bot
         self.recipe_name = recipe_name
 
     async def callback(self, interaction: discord.Interaction):
         await interaction.response.send_modal(ProductionOrderModal(self.bot, self.recipe_name))
+
 
 
 class ProductionOrders(commands.Cog):
@@ -151,8 +160,18 @@ class ProductionOrders(commands.Cog):
             await ctx.message.delete()
         except discord.Forbidden:
             pass  # silently fail if it can't delete
+
         view = ProductionPanelView(self.bot)
         await ctx.send("🛠️ **Start a Production Order:**", view=view)
+        message = await ctx.send("🛠️ **Start a Production Order:**", view=view)
+
+        # Cache it to the database
+        cursor.execute("""
+            INSERT INTO ProductionUI (server_id, channel_id, message_id)
+            VALUES (%s, %s, %s)
+            ON DUPLICATE KEY UPDATE channel_id = VALUES(channel_id), message_id = VALUES(message_id)
+        """, (str(ctx.guild.id), str(message.channel.id), str(message.id)))
+        db_connection.commit()
 
 
 async def setup(bot):
