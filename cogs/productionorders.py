@@ -106,9 +106,17 @@ class ProductionOrderModal(discord.ui.Modal):
             await thread.add_user(role)
             await thread.send(f"🔔 {role.mention} - New production order: **{self.name_input.value}**")
 
-        await interaction.response.send_message(f"✅ Production order **{self.name_input.value}** created in thread {thread.mention}", ephemeral=True)
+        # Send initial panel message (placeholder for now)
+        message = await thread.send("📦 Production order dropoff panel will appear here...")
 
-        # TODO: Post dropoff panel to thread with only relevant orders
+        # Cache panel to DB
+        cursor.execute("""
+            INSERT INTO ProductionPanels (production_order_id, thread_id, message_id)
+            VALUES (%s, %s, %s)
+        """, (production_id, str(thread.id), str(message.id)))
+        db_connection.commit()
+
+        await interaction.response.send_message(f"✅ Production order **{self.name_input.value}** created in thread {thread.mention}", ephemeral=True)
 
 
 class ProductionPanelView(discord.ui.View):

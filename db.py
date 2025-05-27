@@ -72,4 +72,10 @@ def initialize_tables():
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );""")
 
+    cursor.execute("""CREATE TABLE IF NOT EXISTS ProductionPanels (
+    production_order_id INT PRIMARY KEY,
+    thread_id VARCHAR(32),
+    message_id VARCHAR(32)
+    );""")
+
 cursor = db_connection.cursor()
