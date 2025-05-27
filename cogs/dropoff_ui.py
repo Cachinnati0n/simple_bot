@@ -2,6 +2,7 @@ import discord
 from discord.ext import commands
 import asyncio
 from db import cursor, db_connection
+import productionthreadpanel
 
 class DropoffModal(discord.ui.Modal, title="Submit Dropoff"):
     def __init__(self):

@@ -105,3 +105,46 @@ async def post_production_panel(bot, thread: discord.Thread, production_order_id
         ON DUPLICATE KEY UPDATE thread_id = VALUES(thread_id), message_id = VALUES(message_id);
     """, (production_order_id, str(thread.id), str(message.id)))
     db_connection.commit()
+
+async def refresh_panel(bot, production_order_id: int):
+    # Get the panel message info
+    cursor.execute("""
+        SELECT thread_id, message_id FROM ProductionPanels
+        WHERE production_order_id = %s;
+    """, (production_order_id,))
+    row = cursor.fetchone()
+
+    if not row:
+        return
+
+    thread_id, message_id = int(row[0]), int(row[1])
+    thread = bot.get_channel(thread_id)
+    if not thread:
+        return
+
+    try:
+        message = await thread.fetch_message(message_id)
+    except discord.NotFound:
+        return
+
+    # Get the active orders
+    cursor.execute("""
+        SELECT id, resource_name, amount, fulfilled_amount
+        FROM GeneratedOrders
+        WHERE production_order_id = %s AND status = 'open'
+        ORDER BY created_at DESC;
+    """, (production_order_id,))
+    active_orders = cursor.fetchall()
+
+    if not active_orders:
+        await message.edit(content="📭 No active orders for this production.", view=None)
+        return
+
+    msg = "📦 Production Order Drop-Off Panel:\n\n"
+    for order_id, res, amount, fulfilled in active_orders:
+        percent = fulfilled / amount
+        bar = "▰" * int(percent * 10) + "▱" * (10 - int(percent * 10))
+        msg += f"✅ [`{order_id}`] `{res}` — {fulfilled}/{amount} ({percent:.1%}) {bar}\n"
+
+    view = ProductionDropoffPanelView(production_order_id)
+    await message.edit(content=msg, view=view)

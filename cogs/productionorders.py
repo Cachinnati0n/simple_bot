@@ -147,6 +147,10 @@ class ProductionOrders(commands.Cog):
     @commands.command()
     @commands.has_permissions(administrator=True)
     async def postproduction(self, ctx):
+        try:
+            await ctx.message.delete()
+        except discord.Forbidden:
+            pass  # silently fail if it can't delete
         view = ProductionPanelView(self.bot)
         await ctx.send("🛠️ **Start a Production Order:**", view=view)
 
