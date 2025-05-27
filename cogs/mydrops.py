@@ -48,14 +48,14 @@ class MyDrops(commands.Cog):
         except discord.Forbidden:
             pass  # silently fail if it can't delete
         cursor.execute("""
-            SELECT user_id, SUM(amount) as total
+            SELECT Dropoffs.user_id, SUM(Dropoffs.amount) as total
             FROM Dropoffs
             JOIN GeneratedOrders ON Dropoffs.order_id = GeneratedOrders.id
             WHERE GeneratedOrders.server_id = %s
-            GROUP BY user_id
+            GROUP BY Dropoffs.user_id
             ORDER BY total DESC
             LIMIT 10;
-        """, (server_id,))
+            """, (server_id,))
         results = cursor.fetchall()
 
         if not results:
