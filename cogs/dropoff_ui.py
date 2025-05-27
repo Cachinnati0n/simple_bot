@@ -85,16 +85,6 @@ class DropoffPanelView(discord.ui.View):
 class DropoffUIPanel(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-
-        # New multi-server, multi-channel panel registry
-        self.bot.panel_registry = {}  # key: (server_id, channel_id), value: message_id
-
-        # Load all from DB
-        cursor.execute("SELECT server_id, channel_id, message_id FROM DropoffPanel")
-        for server_id, channel_id, message_id in cursor.fetchall():
-            key = (server_id, channel_id)
-            self.bot.panel_registry[key] = int(message_id)
-
         self.bg_task = bot.loop.create_task(self.auto_refresh_panel())
 
     @commands.command()
@@ -102,12 +92,10 @@ class DropoffUIPanel(commands.Cog):
     async def postpanel(self, ctx):
         """Post the Drop Off button panel to the current channel."""
         view = DropoffPanelView(self.bot)
-        server_id = str(ctx.guild.id)
-        channel_id = str(ctx.channel.id)
-        key = (server_id, channel_id)
 
+        server_id = str(ctx.guild.id)
         cursor.execute("""
-            SELECT id, resource_name, amount, fulfilled_amount
+            SELECT id, resource_name, amount, fulfilled_amount, production_order_id
             FROM GeneratedOrders
             WHERE server_id = %s AND status = 'open'
             ORDER BY created_at DESC;
@@ -116,79 +104,74 @@ class DropoffUIPanel(commands.Cog):
 
         if not active_orders:
             message = await ctx.send("📭 No active orders to display.", view=view)
-            self.bot.panel_registry[key] = message.id
-            cursor.execute("""
-                INSERT INTO DropoffPanel (server_id, channel_id, message_id)
-                VALUES (%s, %s, %s)
-                ON DUPLICATE KEY UPDATE message_id = VALUES(message_id);
-            """, (server_id, channel_id, str(message.id)))
-            db_connection.commit()
+            self.bot.panel_message_id = message.id
+            self.bot.panel_channel_id = message.channel.id
             await ctx.message.delete()
             return
 
-        msg = "📦 Click below to log your drop-off:\n\n"
-        for order_id, res, amount, fulfilled in active_orders:
-            percent = fulfilled / amount
-            bar = self.progress_bar(percent)
-            msg += f"✅ [`{order_id}`] `{res}` — {fulfilled}/{amount} ({percent:.1%}) {bar}\n"
+        msg = self.build_grouped_panel(active_orders)
 
         message = await ctx.send(msg, view=view)
-
-        self.bot.panel_registry[key] = message.id
-        cursor.execute("""
-            INSERT INTO DropoffPanel (server_id, channel_id, message_id)
-            VALUES (%s, %s, %s)
-            ON DUPLICATE KEY UPDATE message_id = VALUES(message_id);
-        """, (server_id, channel_id, str(message.id)))
-        db_connection.commit()
-
+        self.bot.panel_message_id = message.id
+        self.bot.panel_channel_id = message.channel.id
         await ctx.message.delete()
 
     async def refresh_panel(self):
-        for (server_id, channel_id), message_id in list(self.bot.panel_registry.items()):
-            try:
-                guild = self.bot.get_guild(int(server_id))
-                if not guild:
-                    continue
+        if not hasattr(self.bot, "panel_message_id") or not hasattr(self.bot, "panel_channel_id"):
+            return
 
-                channel = guild.get_channel(int(channel_id))
-                if not channel:
-                    continue
+        channel = self.bot.get_channel(self.bot.panel_channel_id)
+        if not channel:
+            return
 
-                try:
-                    message = await channel.fetch_message(int(message_id))
-                except discord.NotFound:
-                    del self.bot.panel_registry[(server_id, channel_id)]
-                    cursor.execute("""
-                        DELETE FROM DropoffPanel WHERE server_id = %s AND channel_id = %s
-                    """, (server_id, channel_id))
-                    db_connection.commit()
-                    continue
+        try:
+            message = await channel.fetch_message(self.bot.panel_message_id)
+        except discord.NotFound:
+            return
 
-                cursor.execute("""
-                    SELECT id, resource_name, amount, fulfilled_amount
-                    FROM GeneratedOrders
-                    WHERE server_id = %s AND status = 'open'
-                    ORDER BY created_at DESC;
-                """, (server_id,))
-                active_orders = cursor.fetchall()
+        server_id = str(channel.guild.id)
+        cursor.execute("""
+            SELECT id, resource_name, amount, fulfilled_amount, production_order_id
+            FROM GeneratedOrders
+            WHERE server_id = %s AND status = 'open'
+            ORDER BY created_at DESC;
+        """, (server_id,))
+        active_orders = cursor.fetchall()
 
-                view = DropoffPanelView(self.bot)
+        view = DropoffPanelView(self.bot)
 
-                if not active_orders:
-                    await message.edit(content="📭 No active orders to display.", view=view)
-                    continue
+        if not active_orders:
+            await message.edit(content="📭 No active orders to display.", view=view)
+            return
 
-                msg = "📦 Click below to log your drop-off:\n\n"
-                for order_id, res, amount, fulfilled in active_orders:
-                    percent = fulfilled / amount
-                    bar = self.progress_bar(percent)
-                    msg += f"✅ [`{order_id}`] `{res}` — {fulfilled}/{amount} ({percent:.1%}) {bar}\n"
+        msg = self.build_grouped_panel(active_orders)
+        await message.edit(content=msg, view=view)
 
-                await message.edit(content=msg, view=view)
+    def build_grouped_panel(self, active_orders):
+        from collections import defaultdict
 
-            except Exception as e:
-                print(f"⚠️ Error refreshing panel for {server_id}/{channel_id}: {e}")
+        grouped = defaultdict(list)
+        for row in active_orders:
+            grouped[row[4]].append(row)  # group by production_order_id (can be None)
+
+        msg = "📦 Click below to log your drop-off:\n\n"
+
+        for prod_id, orders in grouped.items():
+            if prod_id:
+                cursor.execute("SELECT title FROM ProductionOrders WHERE id = %s", (prod_id,))
+                result = cursor.fetchone()
+                title = result[0] if result else f"Production {prod_id}"
+                msg += f"🛠️ **{title}**\n"
+            else:
+                msg += "📦 **Independent Orders**\n"
+
+            for order_id, res, amount, fulfilled, _ in orders:
+                percent = fulfilled / amount
+                bar = self.progress_bar(percent)
+                msg += f"✅ [`{order_id}`] `{res}` — {fulfilled}/{amount} ({percent:.1%}) {bar}\n"
+
+            msg += "\n"
+        return msg
 
     async def auto_refresh_panel(self):
         await self.bot.wait_until_ready()
