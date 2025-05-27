@@ -162,7 +162,6 @@ class ProductionOrders(commands.Cog):
             pass  # silently fail if it can't delete
 
         view = ProductionPanelView(self.bot)
-        await ctx.send("🛠️ **Start a Production Order:**", view=view)
         message = await ctx.send("🛠️ **Start a Production Order:**", view=view)
 
         # Cache it to the database
