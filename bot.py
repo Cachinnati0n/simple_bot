@@ -31,6 +31,7 @@ class FoxholeBot(commands.Bot):
         await self.load_extension("cogs.help")
         await self.load_extension("cogs.dropoff_ui")
         await self.load_extension("cogs.orderonce")
+        await self.load_extension("cogs.productionorders")
 
 
 

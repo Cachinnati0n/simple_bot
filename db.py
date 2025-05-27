@@ -60,4 +60,17 @@ def initialize_tables():
     """)
     db_connection.commit()
 
+    cursor.execute("""CREATE TABLE IF NOT EXISTS ProductionOrders (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    server_id VARCHAR(32),
+    user_id VARCHAR(32),
+    recipe_name VARCHAR(100),
+    bay_number VARCHAR(20),
+    title VARCHAR(100),
+    description TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );""")
+
+    cursor.execute("""ALTER TABLE GeneratedOrders ADD COLUMN IF NOT EXISTS production_order_id INT;""")
+
 cursor = db_connection.cursor()
