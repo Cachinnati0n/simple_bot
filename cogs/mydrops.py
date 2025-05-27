@@ -42,18 +42,20 @@ class MyDrops(commands.Cog):
 
     @commands.command()
     async def leaderboard(self, ctx):
+        server_id = str(ctx.guild.id)
         try:
             await ctx.message.delete()
         except discord.Forbidden:
             pass  # silently fail if it can't delete
-        """Show the top contributors by total resources dropped off."""
         cursor.execute("""
             SELECT user_id, SUM(amount) as total
             FROM Dropoffs
+            JOIN GeneratedOrders ON Dropoffs.order_id = GeneratedOrders.id
+            WHERE GeneratedOrders.server_id = %s
             GROUP BY user_id
             ORDER BY total DESC
             LIMIT 10;
-        """)
+        """, (server_id,))
         results = cursor.fetchall()
 
         if not results:
@@ -62,8 +64,9 @@ class MyDrops(commands.Cog):
 
         leaderboard = "**🏆 Top Contributors:**\n\n"
         for rank, (user_id, total) in enumerate(results, 1):
-            user = await self.bot.fetch_user(int(user_id))
-            leaderboard += f"**#{rank}** – {user.name}: `{total}` units\n"
+            member = ctx.guild.get_member(int(user_id)) or await ctx.guild.fetch_member(int(user_id))
+            name = member.display_name if member else f"User {user_id}"
+            leaderboard += f"**#{rank}** – {name}: `{total}` units\n"
 
         await ctx.send(leaderboard, ephemeral=True)
 
