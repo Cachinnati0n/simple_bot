@@ -33,6 +33,7 @@ class FoxholeBot(commands.Bot):
         await self.load_extension("cogs.orderonce")
         await self.load_extension("cogs.productionorders")
         await self.load_extension("cogs.production_panel_refresher")
+        await self.load_extension("cogs.prodution_ui_restore")
 
 
         self.add_view(DropoffPanelView(self))  # Persistent view on restart

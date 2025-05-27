@@ -59,7 +59,6 @@ def initialize_tables():
     PRIMARY KEY (server_id, channel_id)
     );   
     """)
-    db_connection.commit()
 
     cursor.execute("""CREATE TABLE IF NOT EXISTS ProductionOrders (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -71,11 +70,20 @@ def initialize_tables():
     description TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );""")
-
     cursor.execute("""CREATE TABLE IF NOT EXISTS ProductionPanels (
     production_order_id INT PRIMARY KEY,
     thread_id VARCHAR(32),
     message_id VARCHAR(32)
     );""")
+
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS ProductionUI (
+            server_id VARCHAR(32) PRIMARY KEY,
+            channel_id VARCHAR(32) NOT NULL,
+            message_id VARCHAR(32) NOT NULL
+        );
+        """)
+    db_connection.commit()
+
 
 cursor = db_connection.cursor()
