@@ -1,5 +1,6 @@
 import discord
 from db import cursor, db_connection
+from cogs import productionthreadpanel
 
 class ProductionDropoffModal(discord.ui.Modal, title="Submit Dropoff"):
     def __init__(self, production_order_id):
@@ -59,6 +60,8 @@ class ProductionDropoffModal(discord.ui.Modal, title="Submit Dropoff"):
             """, (order_id,))
 
         db_connection.commit()
+
+        await productionthreadpanel.refresh_panel(interaction.client, self.production_order_id)
 
         await interaction.response.send_message(
             f"✅ Logged {amount} units to order `{order_id}`.\n📊 Progress: {new_total}/{target} ({new_total/target:.1%})",
