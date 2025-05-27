@@ -103,7 +103,6 @@ class ProductionOrderModal(discord.ui.Modal):
         role_name = self.role_input.value.strip()
         role = discord.utils.find(lambda r: r.name.lower() == role_name.lower(), interaction.guild.roles)
         if role:
-            await thread.add_user(role)
             await thread.send(f"🔔 {role.mention} - New production order: **{self.name_input.value}**")
 
         # Send initial panel message (placeholder for now)
