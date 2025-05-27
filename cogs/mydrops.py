@@ -2,13 +2,19 @@
 
 from discord.ext import commands
 from db import cursor
+import discord
 
 class MyDrops(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
     @commands.command()
+    
     async def mydrops(self, ctx):
+        try:
+            await ctx.message.delete()
+        except discord.Forbidden:
+            pass  # silently fail if it can't delete
         user_id = str(ctx.author.id)
         server_id = str(ctx.guild.id)
 
@@ -33,6 +39,37 @@ class MyDrops(commands.Cog):
             message += f"- `{total}` {resource}\n"
 
         await ctx.send(message)
+
+    @commands.command()
+    async def leaderboard(self, ctx):
+        server_id = str(ctx.guild.id)
+        try:
+            await ctx.message.delete()
+        except discord.Forbidden:
+            pass  # silently fail if it can't delete
+        cursor.execute("""
+            SELECT Dropoffs.user_id, SUM(Dropoffs.amount) as total
+            FROM Dropoffs
+            JOIN GeneratedOrders ON Dropoffs.order_id = GeneratedOrders.id
+            WHERE GeneratedOrders.server_id = %s
+            GROUP BY Dropoffs.user_id
+            ORDER BY total DESC
+            LIMIT 10;
+            """, (server_id,))
+        results = cursor.fetchall()
+
+        if not results:
+            await ctx.send("📭 No dropoffs recorded yet.", ephemeral=True)
+            return
+
+        leaderboard = "**🏆 Top Contributors:**\n\n"
+        for rank, (user_id, total) in enumerate(results, 1):
+            member = ctx.guild.get_member(int(user_id)) or await ctx.guild.fetch_member(int(user_id))
+            name = member.display_name if member else f"User {user_id}"
+            leaderboard += f"**#{rank}** – {name}: `{total}` units\n"
+
+        await ctx.send(leaderboard, ephemeral=True)
+
 
 async def setup(bot):
     await bot.add_cog(MyDrops(bot))
