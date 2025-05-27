@@ -2,6 +2,7 @@ import discord
 from discord.ext import commands
 from db import cursor, db_connection
 import asyncio
+from cogs.production_thread_panel import post_production_panel
 
 # Recipes
 RECIPES = {
@@ -116,6 +117,9 @@ class ProductionOrderModal(discord.ui.Modal):
         db_connection.commit()
 
         await interaction.response.send_message(f"✅ Production order **{self.name_input.value}** created in thread {thread.mention}", ephemeral=True)
+
+        # Inside on_submit, after thread is created and message sent:
+        await post_production_panel(self.bot, thread, production_id)
 
 
 class ProductionPanelView(discord.ui.View):
