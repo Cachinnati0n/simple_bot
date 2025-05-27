@@ -47,13 +47,20 @@ class ProductionOrderModal(discord.ui.Modal):
         )
         self.add_item(self.desc_input)
 
+        self.role_input = discord.ui.TextInput(
+            label="Visible to Role (without @)",
+            placeholder="e.g. Armor or Logistics",
+            required=False
+        )
+        self.add_item(self.role_input)
+
     async def on_submit(self, interaction: discord.Interaction):
         user_id = str(interaction.user.id)
         server_id = str(interaction.guild.id)
         channel = interaction.channel
         recipe = RECIPES[self.recipe_name]
 
-        # 1. Insert Production Order into DB
+        # Insert production order
         cursor.execute("""
             INSERT INTO ProductionOrders (server_id, user_id, recipe_name, bay_number, title, description)
             VALUES (%s, %s, %s, %s, %s, %s)
@@ -70,7 +77,7 @@ class ProductionOrderModal(discord.ui.Modal):
         cursor.execute("SELECT LAST_INSERT_ID();")
         (production_id,) = cursor.fetchone()
 
-        # 2. Create associated GeneratedOrders
+        # Generate material orders
         for resource, amount in recipe.items():
             cursor.execute("""
                 INSERT INTO GeneratedOrders (
@@ -86,11 +93,18 @@ class ProductionOrderModal(discord.ui.Modal):
             ))
         db_connection.commit()
 
-        # 3. Create thread
+        # Create thread
         thread = await channel.create_thread(
             name=self.name_input.value,
             type=discord.ChannelType.public_thread
         )
+
+        # Find and add role
+        role_name = self.role_input.value.strip()
+        role = discord.utils.find(lambda r: r.name.lower() == role_name.lower(), interaction.guild.roles)
+        if role:
+            await thread.add_user(role)
+            await thread.send(f"🔔 {role.mention} - New production order: **{self.name_input.value}**")
 
         await interaction.response.send_message(f"✅ Production order **{self.name_input.value}** created in thread {thread.mention}", ephemeral=True)
 
