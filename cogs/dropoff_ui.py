@@ -85,6 +85,13 @@ class DropoffPanelView(discord.ui.View):
 class DropoffUIPanel(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+
+        # Load panel data from DB
+        cursor.execute("SELECT server_id, channel_id, message_id FROM DropoffPanel")
+        for server_id, channel_id, message_id in cursor.fetchall():
+            self.bot.panel_channel_id = int(channel_id)
+            self.bot.panel_message_id = int(message_id)
+
         self.bg_task = bot.loop.create_task(self.auto_refresh_panel())
 
     @commands.command()
@@ -116,8 +123,16 @@ class DropoffUIPanel(commands.Cog):
         self.bot.panel_channel_id = message.channel.id
         await ctx.message.delete()
 
+        cursor.execute("""
+            INSERT INTO DropoffPanel (server_id, channel_id, message_id)
+            VALUES (%s, %s, %s)
+            ON DUPLICATE KEY UPDATE channel_id = VALUES(channel_id), message_id = VALUES(message_id);
+        """, (server_id, str(message.channel.id), str(message.id)))
+        db_connection.commit()
+
     async def refresh_panel(self):
         if not hasattr(self.bot, "panel_message_id") or not hasattr(self.bot, "panel_channel_id"):
+            print("[DropoffUIPanel] Panel message or channel not set.")
             return
 
         channel = self.bot.get_channel(self.bot.panel_channel_id)
