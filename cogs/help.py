@@ -8,63 +8,67 @@ class HelpCommand(commands.Cog):
     @commands.command(name="help")
     async def help_command(self, ctx):
         embed = discord.Embed(
-            title="🛠️ Dash Logistics Bot Help",
-            description="Here are the available commands:",
-            color=discord.Color.green()
+            title="🛠️ Scrapbook Logistics Help Menu",
+            description="Here’s a list of commands and how to use them:",
+            color=discord.Color.blue()
+        )
+
+        embed.add_field(
+            name="`!help`",
+            value="Show this help message.",
+            inline=False
         )
 
         embed.add_field(
             name="`!neworder`",
-            value="Create a recurring resource order with automatic posting.",
+            value="Start a recurring resource order.\n**Syntax:** `!neworder` and follow prompts.",
             inline=False
         )
 
         embed.add_field(
             name="`!orderonce`",
-            value="Create a one-time resource order.",
+            value="Create a one-time resource order.\n**Syntax:** `!orderonce` and follow prompts.",
             inline=False
         )
 
         embed.add_field(
-            name="`!dropoff`",
-            value="Log a resource drop-off manually (or use button panels).",
-            inline=False
-        )
-
-        embed.add_field(
-            name="`!mydrops`",
-            value="Check your personal drop-off contribution history.",
-            inline=False
-        )
-
-        embed.add_field(
-            name="`!completedorders`",
-            value="View recently fulfilled orders.",
+            name="`!postpanel`",
+            value="(Admin) Post the full drop-off dashboard.\n**Syntax:** `!postpanel`",
             inline=False
         )
 
         embed.add_field(
             name="`!postproduction`",
-            value="(Admin) Post production order UI for creating assembly orders.",
+            value="(Admin) Post the UI for starting a production order.\n**Syntax:** `!postproduction`",
             inline=False
         )
 
         embed.add_field(
-            name="`!orderstatus`",
-            value="View all active orders, grouped by production order if relevant.",
+            name="`!pauseorder <order_id>`",
+            value="(Admin) Pause an active recurring order.\n**Syntax:** `!pauseorder 17`",
             inline=False
         )
 
         embed.add_field(
-            name="`!setchannel`",
-            value="(Optional) Set a default channel for order posting.",
+            name="`!mydrops`",
+            value="List your drop-offs and contributions.\n**Syntax:** `!mydrops`",
             inline=False
         )
 
-        embed.set_footer(text="You can also interact with buttons directly on posted order panels.")
+        embed.add_field(
+            name="`!completedorders`",
+            value="View a summary of fulfilled orders.\n**Syntax:** `!completedorders`",
+            inline=False
+        )
 
+        embed.add_field(
+            name="`!status`",
+            value="Show current server status and active logistics.\n**Syntax:** `!status`",
+            inline=False
+        )
+
+        embed.set_footer(text="You can also use interactive buttons in each panel to log drop-offs or create new orders.")
         await ctx.send(embed=embed)
 
 async def setup(bot):
     await bot.add_cog(HelpCommand(bot))
-
