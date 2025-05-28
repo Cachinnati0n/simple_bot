@@ -144,8 +144,13 @@ async def refresh_panel(bot, production_order_id: int):
 
     if not active_orders:
         await message.edit(content="📭 No active orders for this production.", view=None)
+        try:
+            await thread.edit(archived=True)
+        except discord.Forbidden:
+            print(f"[refresh_panel] Failed to archive thread {thread_id}: insufficient permissions.")
         return
 
+    # If still active orders, update the panel
     msg = "📦 Production Order Drop-Off Panel:\n\n"
     for order_id, res, amount, fulfilled in active_orders:
         percent = fulfilled / amount
