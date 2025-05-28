@@ -149,6 +149,16 @@ async def refresh_panel(bot, production_order_id: int):
     except discord.NotFound:
         return
 
+    # Get metadata for the production order
+    cursor.execute("""
+        SELECT description, bay_number FROM ProductionOrders
+        WHERE id = %s
+    """, (production_order_id,))
+    prod_meta = cursor.fetchone()
+
+    description = prod_meta[0] if prod_meta else "No description provided."
+    bay_number = prod_meta[1] if prod_meta else "Unknown"
+
     # Get the active orders
     cursor.execute("""
         SELECT id, resource_name, amount, fulfilled_amount
@@ -166,8 +176,11 @@ async def refresh_panel(bot, production_order_id: int):
             print(f"[refresh_panel] Failed to archive thread {thread_id}: insufficient permissions.")
         return
 
-    # If still active orders, update the panel
-    msg = "📦 Production Order Drop-Off Panel:\n\n"
+    # Build the updated message
+    msg = f"📦 **Production Order Drop-Off Panel**\n"
+    msg += f"🏭 **Assembly Bay:** `{bay_number}`\n"
+    msg += f"📝 **Description:** {description}\n\n"
+
     for order_id, res, amount, fulfilled in active_orders:
         percent = fulfilled / amount
         bar = "▰" * int(percent * 10) + "▱" * (10 - int(percent * 10))
@@ -175,3 +188,4 @@ async def refresh_panel(bot, production_order_id: int):
 
     view = ProductionDropoffPanelView(production_order_id)
     await message.edit(content=msg, view=view)
+
