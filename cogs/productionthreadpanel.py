@@ -83,6 +83,17 @@ class ProductionDropoffPanelView(discord.ui.View):
 
 
 async def post_production_panel(bot, thread: discord.Thread, production_order_id: int):
+    # Get metadata for the production order
+    cursor.execute("""
+        SELECT description, bay_number FROM ProductionOrders
+        WHERE id = %s
+    """, (production_order_id,))
+    prod_meta = cursor.fetchone()
+
+    description = prod_meta[0] if prod_meta else "No description provided."
+    bay_number = prod_meta[1] if prod_meta else "Unknown"
+
+    # Get active orders
     cursor.execute("""
         SELECT id, resource_name, amount, fulfilled_amount
         FROM GeneratedOrders
@@ -95,7 +106,11 @@ async def post_production_panel(bot, thread: discord.Thread, production_order_id
         await thread.send("📭 No active orders for this production.")
         return
 
-    msg = "📦 Production Order Drop-Off Panel:\n\n"
+    # Build message
+    msg = f"📦 **Production Order Drop-Off Panel**\n"
+    msg += f"🏭 **Assembly Bay:** `{bay_number}`\n"
+    msg += f"📝 **Description:** {description}\n\n"
+
     for order_id, res, amount, fulfilled in active_orders:
         percent = fulfilled / amount
         bar = "▰" * int(percent * 10) + "▱" * (10 - int(percent * 10))
@@ -111,6 +126,7 @@ async def post_production_panel(bot, thread: discord.Thread, production_order_id
         ON DUPLICATE KEY UPDATE thread_id = VALUES(thread_id), message_id = VALUES(message_id);
     """, (production_order_id, str(thread.id), str(message.id)))
     db_connection.commit()
+
 
 async def refresh_panel(bot, production_order_id: int):
     # Get the panel message info
