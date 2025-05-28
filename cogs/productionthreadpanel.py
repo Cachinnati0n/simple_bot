@@ -153,7 +153,7 @@ async def refresh_panel(bot, production_order_id: int):
     cursor.execute("""
         SELECT description, bay_number FROM ProductionOrders
         WHERE id = %s
-    """, (production_order_id,))
+    """, (int(production_order_id),))
     prod_meta = cursor.fetchone()
 
     description = prod_meta[0] if prod_meta else "No description provided."
